@@ -39,7 +39,9 @@ yarn-error.log*
 next-env.d.ts
 
 /docs/*
+!/docs/CHANGES.md
 /data/*
+/models/
 
 .claude/settings.local.json
 

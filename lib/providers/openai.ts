@@ -30,9 +30,10 @@ function toOpenAIMessages(
 }
 
 export async function* streamChat(
-  options: StreamChatOptions
+  options: StreamChatOptions,
+  baseURL?: string
 ): AsyncGenerator<string> {
-  const client = new OpenAI({ apiKey: getApiKey(options.apiKey) });
+  const client = new OpenAI({ apiKey: getApiKey(options.apiKey), baseURL });
 
   const stream = await client.chat.completions.create({
     model: options.model,

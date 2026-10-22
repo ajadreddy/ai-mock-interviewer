@@ -17,7 +17,6 @@ const PROVIDERS: { id: ProviderKeyId; label: string; placeholder: string }[] = [
   { id: "groq", label: "Groq", placeholder: "gsk_…" },
   { id: "anthropic", label: "Anthropic", placeholder: "sk-ant-…" },
   { id: "openai", label: "OpenAI", placeholder: "sk-…" },
-  { id: "elevenlabs", label: "ElevenLabs", placeholder: "sk_…" },
 ];
 
 export function ByokDrawer({ onClose }: Props) {

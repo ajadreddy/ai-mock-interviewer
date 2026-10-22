@@ -125,39 +125,29 @@ communication.
 
 ## AI providers & models
 
-Uniform per-provider adapters live under `lib/providers/*` (OpenAI, Groq, Gemini,
-Anthropic). Model presets are defined in `lib/ai-models.ts`:
+The default interviewer and feedback model is local Qwen3 4B Instruct through
+Ollama, configured with a 32k context in `scripts/Modelfile`. The server uses its OpenAI-compatible endpoint without an API key.
+Cloud presets (Gemini, OpenAI, Groq, Anthropic) remain selectable in the model
+menu and use optional BYOK keys from the API Keys drawer or server environment.
+The drawer is hidden when the local model is selected.
 
-- **OpenAI GPT-5.4 Mini** — default interviewer + feedback model. A strong, reliable
-  structured tool-caller; the hosted demo runs on the builder's own OpenAI key so
-  the interview "just works" with no BYOK friction.
-- **Groq Llama 3.3 70B**, **Gemini 2.5 Flash**, **Claude Sonnet 4.6** — selectable in
-  the chat panel's model picker (persisted to localStorage).
-
-Because a selectable provider (Groq) can be a weak structured tool-caller, the
-architecture leans on prompt + state rather than heavy tool orchestration: few
-tools, no control-flow tools, never a silent/tool-only turn, and defensive guards
-around tool-call failures so a weak caller degrades gracefully.
-
-BYOK keys are pasted in the **API Keys** drawer (`components/ByokDrawer.tsx`),
-stored in localStorage, and forwarded per request via the `x-provider-key` header.
-The server (`lib/resolve-provider-key.ts`) prefers the header over env and never
-logs or persists it.
+Because smaller local models can be weak structured tool-callers, the
+architecture leans on prompt + state rather than heavy tool orchestration:
+few tools, no control-flow tools, never a silent/tool-only turn, and defensive
+guards around tool-call failures.
 
 ---
 
 ## Voice
 
-**Transcription (in).** `POST /api/transcribe` proxies OpenAI `gpt-4o-mini-transcribe`
-on the server key (or a prefix-validated BYOK OpenAI key). Two capture modes during
-coding: an ambient loop (`lib/groq-ambient.ts` + `useGroqAmbient`) that posts ~30s
-chunks, and a push-to-talk focused mic (`useFocusMicRecorder`) that posts a single
-blob. (The `groq-*` names are historical — there is no Groq in the speech path.)
+**Transcription (in).** `POST /api/transcribe` decodes browser audio with
+`ffmpeg` and runs the offline Moonshine Tiny model through `sherpa-onnx-node`.
+Ambient ~30s chunks and focused mic recordings use the same route.
 
-**Text-to-speech (out).** `POST /api/tts` — one contract (text in, `audio/mpeg`
-out) behind two engines: OpenAI `gpt-4o-mini-tts` (default, same metered key) or
-ElevenLabs. Selection: the `TTS_PROVIDER` env override wins; otherwise ElevenLabs
-is used when its key is set, else OpenAI.
+**Text-to-speech (out).** `POST /api/tts` runs a local Piper voice through
+`sherpa-onnx-node` and returns WAV audio. Both models are downloaded by
+`scripts/setup-local-models.sh` into ignored `models/`; neither route needs a
+provider key. The historical `groq-*` file/hook names remain.
 
 ---
 
@@ -208,8 +198,9 @@ Upstash Redis (optional, fail-open) backs per-IP rate limiting, signup capture, 
 funnel/rating stats (`lib/stats.ts`, readable via a token-gated `/api/stats`), and a
 BYOK **"at capacity"** gate. When the gate trips — automatically on an OpenAI
 `insufficient_quota` error or past a start-count threshold, or manually via
-`BYOK_MODE` — new visitors are routed to `/at-capacity` to bring their own OpenAI
-key or join a waitlist, rather than spending the server key. With Upstash unset,
+`BYOK_MODE` — cloud visitors are routed to `/at-capacity` to bring their own Gemini
+key or join a waitlist, rather than spending the server key. The local Ollama
+default bypasses this gate. With Upstash unset,
 everything fails open: no limiting, no analytics, BYOK gate off.
 
 ---

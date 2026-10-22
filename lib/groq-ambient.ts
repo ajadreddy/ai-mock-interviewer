@@ -1,5 +1,3 @@
-import { loadProviderKeys } from "@/lib/byok";
-
 const CHUNK_MS = 30_000;
 /** Delay before starting the next recorder on the same stream (avoids browser handoff races). */
 const CHUNK_RESTART_DELAY_MS = 50;
@@ -18,15 +16,13 @@ function isStreamLive(stream: MediaStream): boolean {
   );
 }
 
-async function transcribeChunk(blob: Blob, apiKey: string): Promise<string> {
+async function transcribeChunk(blob: Blob): Promise<string> {
   if (blob.size < 512) return "";
   const ext = blob.type.includes("mp4") ? "mp4" : "webm";
   const form = new FormData();
   form.append("file", blob, `audio.${ext}`);
-  const headers: Record<string, string> = {};
-  if (apiKey) headers["x-provider-key"] = apiKey;
   try {
-    const res = await fetch("/api/transcribe", { method: "POST", headers, body: form });
+    const res = await fetch("/api/transcribe", { method: "POST", body: form });
     if (!res.ok) return "";
     const data = (await res.json()) as { text?: string };
     return typeof data.text === "string" ? data.text.trim() : "";
@@ -46,7 +42,7 @@ export interface GroqAmbientHandle {
 
 /**
  * Start continuous ambient recording that sends 30-second audio chunks to
- * /api/transcribe (OpenAI Whisper server-side). Each chunk is transcribed in the
+ * /api/transcribe (local offline model). Each chunk is transcribed in the
  * background; results are delivered via `onTranscript`. Returns null if the user
  * denies microphone access.
  */
@@ -64,10 +60,6 @@ export async function startGroqAmbientRecording(
   }
 
   const mime = pickMimeType();
-  // BYOK OpenAI key for transcription (matches /api/transcribe + the focus-mic
-  // path). Empty when unset → the route falls back to the OPENAI_API_KEY env.
-  const apiKey = loadProviderKeys().openai ?? "";
-
   let recorder: MediaRecorder | null = null;
   let chunks: BlobPart[] = [];
   let chunkTimer: ReturnType<typeof setTimeout> | null = null;
@@ -89,7 +81,7 @@ export async function startGroqAmbientRecording(
     if (chunks.length === 0) return;
     const blob = new Blob(chunks, { type: mime || "audio/webm" });
     chunks = [];
-    void transcribeChunk(blob, apiKey).then((text) => {
+    void transcribeChunk(blob).then((text) => {
       if (text && !stopped) onTranscript(text);
     });
   }

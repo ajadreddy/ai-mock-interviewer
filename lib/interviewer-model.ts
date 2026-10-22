@@ -21,6 +21,11 @@ export function getInterviewerLanguageModel(
   apiKey: string
 ): LanguageModel {
   switch (config.provider) {
+    case "ollama":
+      return createOpenAI({
+        baseURL: `${process.env.OLLAMA_BASE_URL ?? "http://127.0.0.1:11434"}/v1`,
+        apiKey: "ollama",
+      }).chat(config.model);
     case "groq":
       return createOpenAI({
         baseURL: "https://api.groq.com/openai/v1",

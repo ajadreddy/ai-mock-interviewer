@@ -104,6 +104,12 @@ async function* streamFromProvider(
 ): AsyncGenerator<string> {
   const opts = { system, messages, model: modelConfig.model, apiKey };
   switch (modelConfig.provider) {
+    case "ollama":
+      yield* openaiProvider.streamChat(
+        { ...opts, apiKey: "ollama" },
+        `${process.env.OLLAMA_BASE_URL ?? "http://127.0.0.1:11434"}/v1`
+      );
+      break;
     case "groq":
       yield* groqProvider.streamChat(opts);
       break;

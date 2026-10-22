@@ -13,7 +13,7 @@ A coding interview simulator. You get a problem, talk through your approach out 
 
 The point is everything a normal chat window can't do: a real editor, your code executed against **visible and hidden** test cases, voice think-aloud, code snapshots over time, and timing — all fed back into final feedback so it cites evidence instead of handing out generic praise.
 
-Python-only execution. BYOK (bring your own API key) or server env keys. Built on Next.js + the Vercel AI SDK.
+Python-only execution. Local Ollama and offline voice by default; cloud models are optional. Built on Next.js + the Vercel AI SDK.
 
 ---
 
@@ -46,9 +46,9 @@ A normal chat is already good at running a flexible clarify → approach → cod
 | Framework | Next.js 16 (App Router), React 19, TypeScript, Tailwind 4 |
 | Editor | Monaco (`@monaco-editor/react`) |
 | AI orchestration | Vercel AI SDK 6 (`streamText` + tool calling) |
-| Interviewer / feedback models | OpenAI GPT-5.4 Mini (default); Groq Llama 3.3 70B, Gemini 2.5 Flash, Claude Sonnet 4.6 selectable in the chat panel (persisted to localStorage) |
-| Voice in | OpenAI `gpt-4o-mini-transcribe` via `/api/transcribe` — ambient 30s chunks during coding + push-to-talk mic |
-| Voice out | OpenAI `gpt-4o-mini-tts` (default) or ElevenLabs |
+| Interviewer / feedback models | Local Qwen3 4B via Ollama (default); Gemini 2.5 Flash, OpenAI GPT-5.4 Mini, Groq Llama 3.3 70B, Claude Sonnet 4.6 selectable in the chat panel (persisted to localStorage) |
+| Voice in | Offline Moonshine Tiny via `/api/transcribe` — ambient 30s chunks during coding + push-to-talk mic |
+| Voice out | Offline Piper voice via `/api/tts` |
 | Code execution | Judge0 — Python 3 only; public CE endpoint by default, override via `JUDGE0_API_URL` |
 | Limits / analytics | Upstash Redis — rate limiting, signup capture, funnel/rating stats, BYOK "at capacity" gate (all optional, fail-open) |
 | Question bank | `data/questions.demo.json` (local, gitignored) |
@@ -62,7 +62,9 @@ A normal chat is already good at running a flexible clarify → approach → cod
 git clone https://github.com/karanjot-gaidu/ai-mock-interviewer.git
 cd ai-mock-interviewer
 npm install
-# copy .env.example → .env.local and fill in at least OPENAI_API_KEY
+# start the Ollama app, or run `ollama serve` in another terminal
+./scripts/setup-local-models.sh  # prepare Ollama and download offline speech models
+# install ffmpeg if needed (for microphone audio decoding)
 # copy data/questions.example.json → data/questions.demo.json and add your questions
 npm run dev      # http://localhost:3000
 ```
@@ -76,23 +78,11 @@ every `hiddenTestCases` array are server-only grading data that never reach the
 browser or get read aloud. A handful of questions with sharp hidden tests beats
 many shallow ones.
 
-The default setup runs entirely on **OpenAI** — it powers the interviewer, feedback, transcription, and (by default) TTS — so `OPENAI_API_KEY` is the only key you need to get started. Everything else is optional:
+The default AI path runs **locally without API keys**. Start Ollama before the setup script and `npm run dev`; the app uses the `mock-coding-local` Ollama preset (Qwen3 4B with 32k context) for the interviewer and feedback. The setup script downloads the Moonshine Tiny speech recognition and Piper voice models into ignored `models/`. `ffmpeg` must be on your PATH to decode microphone recordings. On macOS, install it with `brew install ffmpeg` if needed.
 
-```
-OPENAI_API_KEY=...        # required for the default setup
-NEXT_PUBLIC_SITE_URL=...  # optional; canonical URL for OG tags (defaults to the mockcoding.dev)
-GEMINI_API_KEY=...        # optional alternate interviewer model
-GROQ_API_KEY=...          # optional alternate interviewer model
-ANTHROPIC_API_KEY=...     # optional alternate interviewer model
-ELEVENLABS_API_KEY=...    # optional alternate TTS engine
-# JUDGE0_API_URL=...       # optional; defaults to the public Judge0 CE endpoint
-# UPSTASH_REDIS_REST_URL / _TOKEN   # optional; enables limits + analytics
-# BYOK_SESSION_THRESHOLD=...        # optional; session count before at-capacity gate
-```
+Cloud interviewer models remain optional in the Advanced model menu. Their provider keys can be set in `.env.local` or in the **API Keys** drawer, which appears only when a cloud model is selected. Local transcription and speech always stay on this machine.
 
-See `.env.example` for the full set (TTS engine selection, Judge0 auth headers incl. RapidAPI, the at-capacity override, and the stats token). Keys in `.env.local` are read server-side only by the API routes — never sent to the browser, logged, or persisted.
-
-**BYOK.** The **API Keys** button in the chat panel opens a drawer where you paste per-provider keys. They're stored only in your browser's localStorage and forwarded to the server per request via the `x-provider-key` header (server prefers the header over env, and never logs or persists it). This lets you run without setting any env vars.
+See `.env.example` for optional overrides such as `OLLAMA_BASE_URL`, Judge0 auth, and analytics. The local default bypasses the cloud demo's at-capacity key gate. Judge0 code execution still uses its configured endpoint.
 
 ---
 
@@ -108,8 +98,8 @@ app/
     interviewer/route.ts        the single interviewer brain — every conversational turn
     feedback/route.ts             final grounded scorecard generation
     judge0/route.ts               Judge0 code-execution proxy
-    transcribe/route.ts           OpenAI transcription proxy
-    tts/route.ts                  text-to-speech proxy (OpenAI default / ElevenLabs)
+    transcribe/route.ts           offline Moonshine transcription
+    tts/route.ts                  offline Piper text-to-speech
     rating, signup, stats         funnel + analytics endpoints (Upstash-backed)
 
 components/

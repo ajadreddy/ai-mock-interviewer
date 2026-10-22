@@ -1,6 +1,6 @@
 import type { AiProvider } from "@/lib/ai-models";
 
-export type ProviderKeyId = AiProvider | "elevenlabs";
+export type ProviderKeyId = AiProvider;
 
 export type ProviderKeys = Partial<Record<ProviderKeyId, string>>;
 

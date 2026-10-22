@@ -7,7 +7,9 @@
 
 import type { AiProvider } from "@/lib/ai-models";
 
-const ENV_VAR: Record<AiProvider, string> = {
+type KeyedProvider = Exclude<AiProvider, "ollama">;
+
+const ENV_VAR: Record<KeyedProvider, string> = {
   groq: "GROQ_API_KEY",
   anthropic: "ANTHROPIC_API_KEY",
   openai: "OPENAI_API_KEY",
@@ -23,6 +25,8 @@ export function keyMatchesProvider(
   key: string
 ): boolean {
   switch (provider) {
+    case "ollama":
+      return false;
     case "groq":
       return key.startsWith("gsk_");
     case "anthropic":
@@ -40,9 +44,9 @@ export function keyMatchesProvider(
 }
 
 export class MissingProviderKeyError extends Error {
-  readonly provider: AiProvider;
+  readonly provider: KeyedProvider;
   readonly envVar: string;
-  constructor(provider: AiProvider) {
+  constructor(provider: KeyedProvider) {
     const envVar = ENV_VAR[provider];
     super(
       `No API key for ${provider}. Set ${envVar} in .env.local or paste a ${provider} key in the API Keys drawer.`
@@ -65,6 +69,9 @@ export function resolveProviderKey(
   provider: AiProvider,
   headerKey?: string
 ): { apiKey: string } {
+  if (provider === "ollama") {
+    return { apiKey: "ollama" };
+  }
   if (headerKey) {
     if (keyMatchesProvider(provider, headerKey)) {
       return { apiKey: headerKey };

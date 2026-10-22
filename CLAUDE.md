@@ -130,22 +130,20 @@ summarization or history windowing.
 
 ### AI providers
 
-Uniform adapters under `lib/providers/*` (OpenAI, Groq, Gemini, Anthropic).
-Presets in `lib/ai-models.ts` (add models there only); default is
-`openai-gpt-5.4-mini`. BYOK via `components/ByokDrawer.tsx` → localStorage →
-`x-provider-key` header; server (`lib/resolve-provider-key.ts`) prefers header
-over env, never logs/persists.
+Default interviewer and feedback: local `mock-coding-local` (Qwen3 4B, 32k
+context) through Ollama's
+OpenAI-compatible endpoint (`lib/interviewer-model.ts`, `lib/feedback.ts`). It
+requires no API key. Cloud presets remain in `lib/ai-models.ts`; their optional
+BYOK keys use `components/ByokDrawer.tsx` and `x-provider-key`.
 
-### Speech — OpenAI (transcription + TTS)
+### Speech — offline
 
 Ambient (coding phase): `lib/groq-ambient.ts` + `useGroqAmbient` → ~30s chunks
 → `POST /api/transcribe`. Focused mic: `useFocusMicRecorder` → single blob →
-same route. Transcription proxies OpenAI `gpt-4o-mini-transcribe` on
-`OPENAI_API_KEY` (or a prefix-validated BYOK OpenAI key) — the `groq-*`
-file/hook names are historical; there is no Groq in the speech path. TTS
-(`/api/tts`): one contract (text in, `audio/mpeg` out), OpenAI
-`gpt-4o-mini-tts` by default, ElevenLabs when its key is set or
-`TTS_PROVIDER=elevenlabs`.
+same route. `ffmpeg` decodes the recording; `lib/local-speech.ts` runs Moonshine
+Tiny for speech recognition. `/api/tts` uses the same module's Piper voice and
+returns WAV. Models live in ignored `models/` after
+`scripts/setup-local-models.sh`. The `groq-*` names are historical.
 
 ### Code execution — do not touch
 
@@ -170,15 +168,14 @@ Everything here degrades to "off" without Upstash env vars — an outage must
 never block an interview.
 
 - `middleware.ts` — per-IP sliding-window rate limits on the seven public API
-  routes; applied at the middleware layer so the do-not-touch route files stay
-  untouched.
+  routes at the middleware layer.
 - `/api/signup` (waitlist capture), `/api/rating` (feedback rating),
   `/api/stats` (token-gated funnel/rating counters, `lib/stats.ts`).
 - **At-capacity gate** (`lib/byok-mode.ts` + `components/ByokGate.tsx`): flips
-  on automatically on OpenAI `insufficient_quota` or past
+  on automatically on provider `insufficient_quota` or past
   `BYOK_SESSION_THRESHOLD` starts (or manually via `BYOK_MODE`); new visitors
   route to `/at-capacity` to bring their own key or join the waitlist instead
-  of spending the server key.
+  of spending the server key. The local Ollama default bypasses this gate.
 
 ---
 

@@ -1,4 +1,4 @@
-export type AiProvider = "gemini" | "groq" | "anthropic" | "openai";
+export type AiProvider = "ollama" | "gemini" | "groq" | "anthropic" | "openai";
 
 export type AiModelConfig = {
   provider: AiProvider;
@@ -6,6 +6,10 @@ export type AiModelConfig = {
 };
 
 export const AI_MODEL_PRESETS = {
+  "ollama-qwen3-4b-instruct": {
+    provider: "ollama" as const,
+    model: "mock-coding-local",
+  },
   "openai-gpt-5.4-mini": {
     provider: "openai" as const,
     model: "gpt-5.4-mini",
@@ -30,23 +34,18 @@ export const AI_MODEL_OPTIONS: ReadonlyArray<{
   id: AiModelPresetId;
   label: string;
 }> = [
+  { id: "ollama-qwen3-4b-instruct", label: "Local Qwen3 4B (Ollama)" },
   { id: "openai-gpt-5.4-mini", label: "OpenAI GPT-5.4 Mini" },
   { id: "groq-llama-3.3-70b", label: "Groq Llama 3.3 70B" },
   { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
   { id: "anthropic-claude-sonnet-4-6", label: "Claude Sonnet 4.6" },
 ];
 
-// Default interviewer model is OpenAI GPT-5.4 Mini — a strong, reliable
-// structured tool-caller. The hosted demo is deployed with the builder's own
-// OpenAI key, so the interview "just works" for signups: no BYOK friction, no
-// weak-caller failures. Groq, Gemini, and Anthropic presets all remain
-// SELECTABLE for self-hosters who BYOK — they are simply no longer the default.
-// One artifact, two configs (see demo-default-swap.md). Matches the
-// "default is GPT-5.4 Mini" claim in AGENTS.md / CLAUDE.md.
-export const DEFAULT_AI_MODEL_PRESET_ID: AiModelPresetId = "openai-gpt-5.4-mini";
+// The installed Ollama model runs the interview and feedback without a key.
+export const DEFAULT_AI_MODEL_PRESET_ID: AiModelPresetId = "ollama-qwen3-4b-instruct";
 
 /** localStorage key for the interview model picker (survives refresh). */
-export const AI_MODEL_PRESET_STORAGE_KEY = "mock-coding:modelPresetId";
+export const AI_MODEL_PRESET_STORAGE_KEY = "mock-coding:modelPresetId:v3";
 
 export function isAiModelPresetId(id: string): id is AiModelPresetId {
   return id in AI_MODEL_PRESETS;

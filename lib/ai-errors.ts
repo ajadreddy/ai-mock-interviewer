@@ -6,6 +6,7 @@ type ProviderEnv = {
 };
 
 const PROVIDER_INFO: Record<AiProvider, ProviderEnv> = {
+  ollama: { envVar: "OLLAMA_BASE_URL", label: "Ollama" },
   gemini: { envVar: "GEMINI_API_KEY", label: "Gemini" },
   groq: { envVar: "GROQ_API_KEY", label: "Groq" },
   anthropic: { envVar: "ANTHROPIC_API_KEY", label: "Anthropic" },
@@ -42,6 +43,9 @@ export function toClientAiFailure(
   }
 
   if (status === 401 || status === 403) {
+    if (provider === "ollama") {
+      return { status, message: "Ollama rejected the local request. Check that Ollama is running and the model is installed." };
+    }
     if (info != null) {
       return {
         status,
@@ -97,6 +101,7 @@ export function isInsufficientQuotaError(e: unknown): boolean {
 
 function inferProviderFromMessage(message: string): AiProvider | null {
   const m = message.toLowerCase();
+  if (/ollama|127\.0\.0\.1:11434/.test(m)) return "ollama";
   if (/anthropic|claude/.test(m)) return "anthropic";
   if (/openai|gpt-/.test(m)) return "openai";
   if (/gemini|googleai|generativelanguage|google ai/.test(m)) return "gemini";

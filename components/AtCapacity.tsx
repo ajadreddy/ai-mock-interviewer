@@ -10,14 +10,14 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Same prefix heuristic the server uses (resolveProviderKey.keyMatchesProvider),
 // inlined to keep this client component free of the server-only key module.
-function isLikelyOpenAiKey(key: string): boolean {
+function isLikelyGeminiKey(key: string): boolean {
   const k = key.trim();
-  return k.startsWith("sk-") && !k.startsWith("sk-ant-") && k.length >= 20;
+  return k.startsWith("AIza") && k.length >= 20;
 }
 
 /**
  * Shown when the demo is at capacity (BYOK mode). Two paths: keep going on your
- * own OpenAI key (stored in sessionStorage only, never on our server), or leave
+ * own Gemini key (stored in localStorage only, never on our server), or leave
  * an email for the waitlist. `questionId` is validated server-side before it
  * reaches here, so the "start" link is safe.
  */
@@ -35,14 +35,14 @@ export function AtCapacity({ questionId }: { questionId: string }) {
 
   function handleUseKey(e: React.FormEvent) {
     e.preventDefault();
-    if (!isLikelyOpenAiKey(key)) {
-      setKeyError("That doesn't look like an OpenAI key. It should start with sk-.");
+    if (!isLikelyGeminiKey(key)) {
+      setKeyError("That doesn't look like a Gemini key. It should start with AIza.");
       return;
     }
     // Write into the shared localStorage BYOK store (same one the in-interview
     // API Keys drawer reads/writes), so it's a single source of truth and the
     // key can be changed or cleared from the drawer at any time.
-    saveProviderKeys({ ...loadProviderKeys(), openai: key.trim() });
+    saveProviderKeys({ ...loadProviderKeys(), gemini: key.trim() });
     router.push(`/interview/${questionId}`);
   }
 
@@ -95,7 +95,7 @@ export function AtCapacity({ questionId }: { questionId: string }) {
           </h1>
           <p className="mt-5 max-w-xl text-base leading-relaxed text-zinc-400">
             The shared demo is getting more interviews than its budget can cover
-            at the moment. You can keep going immediately with your own OpenAI
+            at the moment. You can keep going immediately with your own Gemini
             key, or leave your email and we&apos;ll tell you the second a slot
             opens up.
           </p>
@@ -107,7 +107,7 @@ export function AtCapacity({ questionId }: { questionId: string }) {
               className="rounded-lg border border-zinc-700 bg-zinc-900/70 p-5"
             >
               <h2 className="text-sm font-semibold text-zinc-100">
-                Continue with your own OpenAI key
+                Continue with your own Gemini key
               </h2>
               <p className="mt-1.5 text-[13px] leading-relaxed text-zinc-400">
                 Your key is saved in this browser only (never on our servers) and
@@ -115,24 +115,24 @@ export function AtCapacity({ questionId }: { questionId: string }) {
                 remove it anytime from the API Keys panel during the interview.
                 Get one at{" "}
                 <a
-                  href="https://platform.openai.com/api-keys"
+                  href="https://aistudio.google.com/apikey"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-emerald-300 underline decoration-emerald-800 underline-offset-4 transition hover:text-emerald-200"
                 >
-                  platform.openai.com
+                  Google AI Studio
                 </a>
                 .
               </p>
               <label className="mt-4 block">
                 <span className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">
-                  OpenAI API key
+                  Gemini API key
                 </span>
                 <input
                   type="password"
                   value={key}
                   onChange={(e) => setKey(e.target.value)}
-                  placeholder="sk-…"
+                  placeholder="AIza…"
                   autoComplete="off"
                   spellCheck={false}
                   className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 font-mono text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-emerald-600 focus:outline-none"

@@ -305,14 +305,14 @@ export function ChatPanel({
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-semibold text-zinc-100">Alex</h2>
-              <button
+              {modelPresetId !== "ollama-qwen3-4b-instruct" && <button
                 type="button"
                 onClick={() => setByokOpen(true)}
                 className="rounded border border-zinc-700 px-1.5 py-0.5 text-[10px] text-zinc-500 hover:border-zinc-500 hover:text-zinc-300"
                 title="Bring Your Own Key: set per-provider API keys"
               >
                 API Keys
-              </button>
+              </button>}
             </div>
             <p className="text-[11px] text-zinc-500">
               {sessionPhase === "followUp"

@@ -10,8 +10,8 @@ import { loadProviderKeys } from "@/lib/byok";
 const noopSubscribe = () => () => {};
 
 /**
- * Gates the interview workspace when the demo is in BYOK / at-capacity mode.
- * A visitor with no OpenAI key (in the shared localStorage BYOK store the API
+ * Gates the interview workspace in optional cloud BYOK / at-capacity mode.
+ * A visitor with no Gemini key (in the shared localStorage BYOK store the API
  * Keys drawer also uses) is redirected to /at-capacity BEFORE
  * InterviewWorkspace mounts, so the opening turn never fires on the server key.
  * When BYOK is off this is a transparent passthrough. A self-hoster who already
@@ -33,7 +33,7 @@ export function ByokGate({
   const router = useRouter();
   const hasKey = useSyncExternalStore(
     noopSubscribe,
-    () => Boolean(loadProviderKeys().openai),
+    () => Boolean(loadProviderKeys().gemini),
     () => false
   );
   const allowed = !byokModeActive || hasKey;

@@ -1,7 +1,7 @@
 # AGENTS.md
 
 Mock Coding — a coding-interview simulator.
-Stack: Next.js · TypeScript · Tailwind · Monaco · Vercel AI SDK 6 · Judge0 · OpenAI (transcription + TTS).
+Stack: Next.js · TypeScript · Tailwind · Monaco · Vercel AI SDK 6 · Judge0 · Ollama · offline speech.
 
 This file is the behavioral contract and the source of truth for rules.
 `CLAUDE.md` imports it and adds the architecture map — *where things live*.
@@ -89,29 +89,29 @@ evidence and run tests.
   gone. Phase advances via inline text tokens the model emits and the client
   strips (`[->planning]`, `[->coding]`, `[segment-complete]`) — transitions are
   text, never tools.
-- Don't touch `lib/judge0.ts`, `/api/judge0`, `/api/transcribe`, `/api/tts`.
-  Execution and speech are settled, working layers.
+- Don't touch `lib/judge0.ts` or `/api/judge0`. Execution is a settled, working layer.
 - Don't send `interviewerContext` or hidden test cases to the model. Redact
   hidden input/expected before any tool return. Client components only ever
   receive `PublicQuestion` (whitelist-built in `lib/questions.ts`) — never
   widen it back toward `Question` across the client boundary.
-- Don't reintroduce Web Speech, local Whisper, history summarization, or
-  windowing. Transcription is server-side hosted (OpenAI
-  `gpt-4o-mini-transcribe`); full chat history is sent verbatim every turn.
+- Don't reintroduce Web Speech, history summarization, or windowing.
+  Transcription uses an offline server-side Moonshine model; full chat history
+  is sent verbatim every turn.
 - Don't spawn parallel sub-agents — the steps here are sequentially dependent.
 - No `any` types. Server-only secrets; BYOK via `x-provider-key` header, never
   logged or persisted.
-- Default interviewer model is **OpenAI GPT-5.4 Mini** (hosted demo on the
-  builder's own key — zero BYOK friction for signups). Groq, Gemini, and
-  Anthropic stay selectable via BYOK. Because Groq is a weak structured
-  tool-caller, lean on prompt+state, not tool orchestration: few tools, no
-  control-flow tools, never a silent/tool-only turn, and keep the weak-caller
-  guards (`noToolInput`, the force-text-on-failure-streak step guard, the
-  empty-reply fallback stream in `/api/interviewer`).
+- Default interviewer model is **local Qwen3 4B Instruct via Ollama**; feedback
+  uses the same model. Speech uses offline Moonshine and Piper models. Cloud
+  providers remain optional. Because small models can be weak structured
+  tool-callers, keep few evidence tools, no control-flow tools, never a
+  silent/tool-only turn, and retain the weak-caller guards (`noToolInput`,
+  force-text-on-failure-streak, empty-reply fallback).
+
 
 ## Commands
 
 ```bash
+./scripts/setup-local-models.sh # prepare Ollama preset and offline voice models
 npm run dev      # start dev server — the only way to run it
 npm run lint     # ESLint — the gate for "done"
 ```

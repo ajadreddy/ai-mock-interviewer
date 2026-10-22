@@ -1,15 +1,10 @@
 /**
- * Speech: OpenAI Whisper transcription + ElevenLabs text-to-speech.
+ * Speech: local transcription and text-to-speech.
  *
  * Web Speech API and local @xenova/transformers Whisper were removed —
  * the server round-trip is more reliable and works the same across browsers.
  */
-import { loadProviderKeys } from "@/lib/byok";
-
-const ELEVENLABS_MAX_TEXT_CHARS = 2200;
-
-/** ElevenLabs API keys are prefixed "sk_" (distinct from OpenAI's "sk-"). */
-const ELEVENLABS_KEY_PREFIX = "sk_";
+const MAX_SPEECH_TEXT_CHARS = 2200;
 
 const CODE_OPERATOR_REPLACEMENTS: ReadonlyArray<[RegExp, string]> = [
   [/\s*===\s*/g, " is strictly equal to "],
@@ -101,9 +96,7 @@ export function isMediaRecorderCaptureSupported(): boolean {
 }
 
 /**
- * Transcribe audio via /api/transcribe (OpenAI Whisper server-side; uses
- * OPENAI_API_KEY env, or a BYOK OpenAI key forwarded below). Name kept for the
- * existing callers — the swap to OpenAI is transparent to them.
+ * Transcribe audio via /api/transcribe. Name kept for existing callers.
  */
 export async function transcribeWithGroqWhisper(blob: Blob): Promise<string> {
   if (blob.size < 256) {
@@ -113,21 +106,13 @@ export async function transcribeWithGroqWhisper(blob: Blob): Promise<string> {
   const form = new FormData();
   form.append("file", blob, `audio.${ext}`);
 
-  const headers: Record<string, string> = {};
-  const keys = loadProviderKeys();
-  // BYOK: a localStorage OpenAI key powers transcription on the user's account.
-  if (keys.openai) {
-    headers["x-provider-key"] = keys.openai;
-  }
-
   const res = await fetch("/api/transcribe", {
     method: "POST",
-    headers,
     body: form,
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new Error(text || `Groq transcription failed (${res.status})`);
+    throw new Error(text || `Local transcription failed (${res.status})`);
   }
   const data = (await res.json()) as { text?: string };
   return typeof data.text === "string" ? data.text.trim() : "";
@@ -145,13 +130,11 @@ export function prepareTextForSpeech(text: string): string {
     .join(" ")
     .replace(/\s+/g, " ")
     .trim()
-    .slice(0, ELEVENLABS_MAX_TEXT_CHARS);
+    .slice(0, MAX_SPEECH_TEXT_CHARS);
 }
 
 /**
- * Synthesize Alex's reply via /api/tts. The server picks the engine (OpenAI
- * gpt-4o-mini-tts on the metered key, or ElevenLabs when configured); the
- * BYOK ElevenLabs header is only honored by the ElevenLabs branch.
+ * Synthesize Alex's reply via local /api/tts.
  */
 export async function synthesizeAlexVoice(text: string): Promise<Blob> {
   const speechText = prepareTextForSpeech(text);
@@ -159,22 +142,9 @@ export async function synthesizeAlexVoice(text: string): Promise<Blob> {
     throw new Error("Nothing to speak.");
   }
 
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-  const keys = loadProviderKeys();
-  // Forward the BYOK OpenAI key for OpenAI TTS (the default engine); fall back
-  // to a BYOK ElevenLabs key for the ElevenLabs engine.
-  if (keys.openai) {
-    headers["x-provider-key"] = keys.openai;
-  } else if (keys.elevenlabs && keys.elevenlabs.startsWith(ELEVENLABS_KEY_PREFIX)) {
-    // Mirror the server guard: only forward a key that looks like ElevenLabs'.
-    headers["x-provider-key"] = keys.elevenlabs;
-  }
-
   const res = await fetch("/api/tts", {
     method: "POST",
-    headers,
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text: speechText }),
   });
 

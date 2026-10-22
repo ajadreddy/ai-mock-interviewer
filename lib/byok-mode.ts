@@ -1,11 +1,13 @@
 // Server-only BYOK ("bring your own key") fallback-mode flag. When ON, the
-// hosted demo is "at capacity": new visitors are routed to /at-capacity to
-// paste their own OpenAI key or join the waitlist, instead of spending the
-// builder's metered key. Stored in the same Upstash Redis the rate limiter,
-// signup capture, and stats already use — no new infra. FAIL-OPEN: any missing
+// hosted cloud demo is "at capacity": new visitors are routed to
+// /at-capacity to paste their own Gemini key or join the waitlist. The local
+// Ollama default bypasses this gate. Stored in the same Upstash Redis the rate
+// limiter, signup capture, and stats already use — no new infra. FAIL-OPEN: any missing
 // env / Redis error resolves to OFF so normal users are never blocked.
 
 import { Redis } from "@upstash/redis";
+
+import { DEFAULT_AI_MODEL_PRESET_ID } from "@/lib/ai-models";
 
 const hasEnv =
   typeof process.env.UPSTASH_REDIS_REST_URL === "string" &&
@@ -67,6 +69,9 @@ function toNumber(v: unknown): number {
  * Fail-open OFF — no Redis or any error means normal users are unaffected.
  */
 export async function getByokMode(): Promise<boolean> {
+  if (DEFAULT_AI_MODEL_PRESET_ID === "ollama-qwen3-4b-instruct") {
+    return false;
+  }
   const override = envOverride();
   if (override !== null) {
     return override;
@@ -99,7 +104,7 @@ export async function getByokMode(): Promise<boolean> {
 }
 
 /**
- * Latch BYOK mode on (e.g. after an OpenAI insufficient_quota error) or off.
+ * Latch BYOK mode on (e.g. after a provider insufficient_quota error) or off.
  * Best-effort and fail-open — never throws, never blocks a request.
  */
 export async function setByokMode(active: boolean): Promise<void> {

@@ -4,8 +4,8 @@
 // Built on Vercel AI SDK 6 streamText with grounding-only tool calling.
 // Phase is app metadata (the model signals readiness with inline tokens; the
 // client commits). The written scorecard is a separate grounded generation
-// (POST /api/feedback). Default model is OpenAI GPT-5.4 Mini (the hosted demo
-// runs on the builder's own key); any preset works via BYOK.
+// (POST /api/feedback). Default model is local Qwen3 through Ollama; cloud
+// presets remain optional.
 
 import { randomUUID } from "node:crypto";
 
@@ -240,17 +240,17 @@ export async function POST(req: NextRequest) {
 
     // BYOK / at-capacity gate (defense-in-depth; the client ByokGate is the
     // primary UX). On a NEW interview, if the demo is at capacity and the
-    // visitor brought no valid OpenAI key, refuse rather than spend the dead
+    // visitor brought no valid Gemini key, refuse rather than spend the dead
     // server key. Only the opening turn pays the Redis read; mid-interview
-    // turns, BYOK-key requests, and non-OpenAI providers skip it entirely.
-    const hasValidOpenAiHeader =
-      modelConfig.provider === "openai" &&
+    // turns, BYOK-key requests, and non-Gemini providers skip it entirely.
+    const hasValidGeminiHeader =
+      modelConfig.provider === "gemini" &&
       typeof byokKey === "string" &&
-      keyMatchesProvider("openai", byokKey);
+      keyMatchesProvider("gemini", byokKey);
     if (
       isOpeningTurn &&
-      modelConfig.provider === "openai" &&
-      !hasValidOpenAiHeader &&
+      modelConfig.provider === "gemini" &&
+      !hasValidGeminiHeader &&
       (await getByokMode())
     ) {
       return NextResponse.json({ error: "at_capacity" }, { status: 503 });
@@ -312,8 +312,8 @@ export async function POST(req: NextRequest) {
         const result = streamText({
           model,
           // Cap the interviewer turn — turns are short by design, so this guards
-          // against a runaway generation inflating cost on the demo's metered
-          // key. Feedback is uncapped (separate path, POST /api/feedback).
+          // against a runaway generation. Feedback is uncapped (separate path,
+          // POST /api/feedback).
           maxOutputTokens: INTERVIEWER_MAX_OUTPUT_TOKENS,
           system,
           messages: contextMessages,
@@ -333,8 +333,8 @@ export async function POST(req: NextRequest) {
           },
           abortSignal: req.signal,
           onError({ error }) {
-            // OpenAI billing exhaustion → latch BYOK / at-capacity mode so new
-            // interviews route to /at-capacity instead of dying on the dead key.
+            // Cloud billing exhaustion can latch BYOK mode when a cloud preset
+            // is selected; local Ollama never needs the at-capacity gate.
             if (isInsufficientQuotaError(error)) {
               void setByokMode(true);
             }
